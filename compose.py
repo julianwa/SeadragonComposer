@@ -1,12 +1,46 @@
 #!/usr/bin/python
-import sys, os, Image, math, subprocess
+
+#
+# Seadragon Composer
+#
+#  Copyright (c) 2011, Julian Walker <julianreidwalker@gmail.com>
+#  All rights reserved.
+#
+#  Redistribution and use in source and binary forms, with or without modification,
+#  are permitted provided that the following conditions are met:
+#
+#      1. Redistributions of source code must retain the above copyright notice,
+#         this list of conditions and the following disclaimer.
+#
+#      2. Redistributions in binary form must reproduce the above copyright
+#         notice, this list of conditions and the following disclaimer in the
+#         documentation and/or other materials provided with the distribution.
+#
+#      3. Neither the name of OpenZoom nor the names of its contributors may be used
+#         to endorse or promote products derived from this software without
+#         specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+#  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+#  WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+#  DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
+#  ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
+#  (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+#  LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
+#  ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+#  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+#  SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+#
+
+import sys
+import os
+import Image
+import math
+import subprocess
+import optparse
 from xmlobject import XMLFile
 
-if (len(sys.argv) != 2):
-	print "usage: "
-	exit(0)
-
-TileSize = 254L
+TILE_SIZE = 254L
 
 def ceilLog2(x):
 	"""Returns the ceiling of the log base 2 of the given long."""
@@ -14,6 +48,8 @@ def ceilLog2(x):
 	while x > (1L << result):
 		result = result + 1
 	return result
+
+################################################################################
 
 def clamp(x, l, r):
 	"""Returns the value x clamped to to the range [l, r]."""
@@ -23,14 +59,20 @@ def clamp(x, l, r):
 		x = r
 	return x
 
+################################################################################
+
 def divPow2RoundUp(x, n):
 	"""Returns the value x divided by 2^n, rounded up."""
 	return (x + (1L << n) - 1) / (1L << n);
+
+################################################################################
 
 def calcLodSize(finestLodSize, lod):
 	"""Returns the size of the given level of detail."""
 	lodDiff = ceilLog2(finestLodSize[0]) - lod
 	return (divPow2RoundUp(finestLodSize[0], lodDiff), divPow2RoundUp(finestLodSize[1], lodDiff))
+
+################################################################################
 
 class Rect:
 
@@ -87,6 +129,7 @@ class Rect:
 	def __str__(self):
 		return "Rect(" + str(self.x0) + "," + str(self.y0) + "," + str(self.x1) + "," + str(self.y1) + ")"
 
+################################################################################
 
 class SceneNode:
 	def __init__(self, imagePath, x, y, width, height, zOrder):
@@ -99,16 +142,16 @@ class SceneNode:
 		self.imageSize = (0,0)
 
 	def finestIntersectingLod(self, finestLodSize):
-		return ceilLog2(finestLodSize[0]) - int(math.floor(math.log(finestLodSize[0] * sceneNode.width / sceneNode.imageSize[0], 2)))
+		return ceilLog2(finestLodSize[0]) - int(math.floor(math.log(finestLodSize[0] * self.width / self.imageSize[0], 2)))
 
 	def lodRect(self, finestLodSize, lod):
 		"""Returns the bounds of the scene node in pixels at the given level of detail."""
 		lodSize = calcLodSize(finestLodSize, lod)
 		return Rect(
-			sceneNode.x * lodSize[0],
-			sceneNode.y * lodSize[1],
-			(sceneNode.x + sceneNode.width) * lodSize[0],
-			(sceneNode.y + sceneNode.height) * lodSize[1]
+			self.x * lodSize[0],
+			self.y * lodSize[1],
+			(self.x + self.width) * lodSize[0],
+			(self.y + self.height) * lodSize[1]
 		)
 
 	def discreteLodRect(self, finestLodSize, lod):
@@ -127,10 +170,10 @@ class SceneNode:
 		discreteLodRect = self.discreteLodRect(finestLodSize, lod)
 		if discreteLodRect.area() > 1:
 			return Rect(
-				discreteLodRect.x0 / TileSize,
-				discreteLodRect.y0 / TileSize,
-				(discreteLodRect.x1 + (TileSize - 1)) / TileSize,
-				(discreteLodRect.y1 + (TileSize - 1)) / TileSize)
+				discreteLodRect.x0 / TILE_SIZE,
+				discreteLodRect.y0 / TILE_SIZE,
+				(discreteLodRect.x1 + (TILE_SIZE - 1)) / TILE_SIZE,
+				(discreteLodRect.y1 + (TILE_SIZE - 1)) / TILE_SIZE)
 		else:
 			return Rect()
 
@@ -140,14 +183,14 @@ class SceneNode:
 		tileX = tile[1]
 		tileY = tile[2]
 
-		lodSize = calcLodSize(compositeImageSize, lod)
+		lodSize = calcLodSize(finestLodSize, lod)
 		lodRect = Rect(0, 0, lodSize[0], lodSize[1])
 
-		sceneNodeLodRect = sceneNode.lodRect(compositeImageSize, lod)
+		sceneNodeLodRect = self.lodRect(finestLodSize, lod)
 
-		scaleFactor = sceneNodeLodRect.width() / sceneNode.imageSize[0]
+		scaleFactor = sceneNodeLodRect.width() / self.imageSize[0]
 
-		tileRect = Rect(tileX * TileSize, tileY * TileSize, (tileX + 1) * TileSize, (tileY + 1) * TileSize).intersection(lodRect)
+		tileRect = Rect(tileX * TILE_SIZE, tileY * TILE_SIZE, (tileX + 1) * TILE_SIZE, (tileY + 1) * TILE_SIZE).intersection(lodRect)
 
 		srcOffset = ((tileRect.x0 - sceneNodeLodRect.x0) / scaleFactor, (tileRect.y0 - sceneNodeLodRect.y0) / scaleFactor)
 
@@ -155,7 +198,7 @@ class SceneNode:
 
 		args = [
 			"convert",
-			sceneNode.imagePath,
+			self.imagePath,
 			"-background", "transparent",
 			"-virtual-pixel", "transparent",
 			"-interpolate", "Bicubic",
@@ -166,6 +209,8 @@ class SceneNode:
 
 		process = subprocess.Popen(args)
 		process.wait()
+
+################################################################################
 
 def determineCompositeImageSize(sceneGraph):
 	""" Determines the composite image size in pixels, based on the size and layout of the scene nodes."""
@@ -178,6 +223,7 @@ def determineCompositeImageSize(sceneGraph):
 
 	return (long(math.ceil(maxWidth)), long(math.ceil(maxWidth / sceneGraph["aspectRatio"])))
 
+################################################################################
 
 def parseSparseImageSceneGraph(sceneGraphPath):
 	x = XMLFile(path=sceneGraphPath)
@@ -208,20 +254,28 @@ def parseSparseImageSceneGraph(sceneGraphPath):
 
 	return sceneGraph
 
+################################################################################
 
-sceneGraph = parseSparseImageSceneGraph(sys.argv[1])
-compositeImageSize = determineCompositeImageSize(sceneGraph)
+def main():
 
-tileRenders = {}
+	sceneGraph = parseSparseImageSceneGraph(sys.argv[1])
+	compositeImageSize = determineCompositeImageSize(sceneGraph)
 
-for sceneNode in sceneGraph["sceneNodes"]:
+	tileRenders = {}
 
-	for lod in reversed(range(1, sceneNode.finestIntersectingLod(compositeImageSize))):
+	for sceneNode in sceneGraph["sceneNodes"]:
 
-		tileRect = sceneNode.tileRect(compositeImageSize, lod)
+		for lod in reversed(range(1, sceneNode.finestIntersectingLod(compositeImageSize))):
 
-		if tileRect.empty():
-			break
+			tileRect = sceneNode.tileRect(compositeImageSize, lod)
 
-		for tileCoord in tileRect:
-			sceneNode.renderToTile(compositeImageSize, (lod, tileCoord[0], tileCoord[1]))
+			if tileRect.empty():
+				break
+
+			for tileCoord in tileRect:
+				sceneNode.renderToTile(compositeImageSize, (lod, tileCoord[0], tileCoord[1]))
+
+################################################################################
+
+if __name__ == "__main__":
+    main()
