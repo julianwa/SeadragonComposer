@@ -1,0 +1,68 @@
+<?xml version="1.0"?>
+<SceneGraph version="1">
+  <AspectRatio>1</AspectRatio>
+  <SceneNode>
+    <FileName>C:\Users\Julian Walker\Desktop\Blah\Chip\Source Images\imr_scale_testassetset__0007_level0.jpg</FileName>
+    <x>0</x>
+    <y>0</y>
+    <Width>1</Width>
+    <Height>1</Height>
+    <ZOrder>1</ZOrder>
+  </SceneNode>
+  <SceneNode>
+    <FileName>C:\Users\Julian Walker\Desktop\Blah\Chip\Source Images\imr_scale_testassetset__0006_level1.jpg</FileName>
+    <x>0.361091757071548</x>
+    <y>0.431869309566157</y>
+    <Width>0.0243044209673976</Width>
+    <Height>0.024304420967398</Height>
+    <ZOrder>2</ZOrder>
+  </SceneNode>
+  <SceneNode>
+    <FileName>C:\Users\Julian Walker\Desktop\Blah\Chip\Source Images\imr_scale_testassetset__0005_level2.jpg</FileName>
+    <x>0.369441057209538</x>
+    <y>0.440918976390614</y>
+    <Width>0.00771179515461974</Width>
+    <Height>0.00771179515461975</Height>
+    <ZOrder>3</ZOrder>
+  </SceneNode>
+  <SceneNode>
+    <FileName>C:\Users\Julian Walker\Desktop\Blah\Chip\Source Images\imr_scale_testassetset__0004_level3.jpg</FileName>
+    <x>0.372805129131805</x>
+    <y>0.444524225842574</y>
+    <Width>0.000588237877299732</Width>
+    <Height>0.000588237877299731</Height>
+    <ZOrder>4</ZOrder>
+  </SceneNode>
+  <SceneNode>
+    <FileName>C:\Users\Julian Walker\Desktop\Blah\Chip\Source Images\imr_scale_testassetset__0003_level4.jpg</FileName>
+    <x>0.373088462250265</x>
+    <y>0.444801828433113</y>
+    <Width>1.18155214866622E-05</Width>
+    <Height>1.18155214866622E-05</Height>
+    <ZOrder>5</ZOrder>
+  </SceneNode>
+  <SceneNode>
+    <FileName>C:\Users\Julian Walker\Desktop\Blah\Chip\Source Images\imr_scale_testassetset__0002_level5.jpg</FileName>
+    <x>0.373093668424731</x>
+    <y>0.444807443554585</y>
+    <Width>1.09052534959404E-06</Width>
+    <Height>1.09052534959403E-06</Height>
+    <ZOrder>6</ZOrder>
+  </SceneNode>
+  <SceneNode>
+    <FileName>C:\Users\Julian Walker\Desktop\Blah\Chip\Source Images\imr_scale_testassetset__0001_level6.jpg</FileName>
+    <x>0.373094195711619</x>
+    <y>0.444807911365808</y>
+    <Width>8.31827484943579E-08</Width>
+    <Height>8.31827484943578E-08</Height>
+    <ZOrder>7</ZOrder>
+  </SceneNode>
+  <SceneNode>
+    <FileName>C:\Users\Julian Walker\Desktop\Blah\Chip\Source Images\imr_scale_testassetset__0000_level7.jpg</FileName>
+    <x>0.373094237160403</x>
+    <y>0.444807947154774</y>
+    <Width>5.24379127340922E-09</Width>
+    <Height>5.24379127340921E-09</Height>
+    <ZOrder>8</ZOrder>
+  </SceneNode>
+</SceneGraph>
