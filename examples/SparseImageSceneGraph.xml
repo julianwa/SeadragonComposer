@@ -1,8 +1,8 @@
 <?xml version="1.0"?>
 <SceneGraph version="1">
-  <AspectRatio>1</AspectRatio>
+  <AspectRatio>1.33333333333333</AspectRatio>
   <SceneNode>
-    <FileName>images\0.png</FileName>
+    <FileName>images\coral.jpg</FileName>
     <x>0</x>
     <y>0</y>
     <Width>1</Width>
@@ -10,59 +10,19 @@
     <ZOrder>1</ZOrder>
   </SceneNode>
   <SceneNode>
-    <FileName>images\1.png</FileName>
-    <x>0.361091757071548</x>
-    <y>0.431869309566157</y>
-    <Width>0.0243044209673976</Width>
-    <Height>0.024304420967398</Height>
+    <FileName>images\anemone.jpg</FileName>
+    <x>0.306581844011442</x>
+    <y>0.403839929605886</y>
+    <Width>0.101570712402273</Width>
+    <Height>0.203268467596793</Height>
     <ZOrder>2</ZOrder>
   </SceneNode>
   <SceneNode>
-    <FileName>images\2.png</FileName>
-    <x>0.369441057209538</x>
-    <y>0.440918976390614</y>
-    <Width>0.00771179515461974</Width>
-    <Height>0.00771179515461975</Height>
+    <FileName>images\octopus.jpg</FileName>
+    <x>0.385265343158655</x>
+    <y>0.582488528275317</y>
+    <Width>0.0401452053998546</Width>
+    <Height>0.0401452053998532</Height>
     <ZOrder>3</ZOrder>
-  </SceneNode>
-  <SceneNode>
-    <FileName>images\3.png</FileName>
-    <x>0.372805129131805</x>
-    <y>0.444524225842574</y>
-    <Width>0.000588237877299732</Width>
-    <Height>0.000588237877299731</Height>
-    <ZOrder>4</ZOrder>
-  </SceneNode>
-  <SceneNode>
-    <FileName>images\4.png</FileName>
-    <x>0.373088462250265</x>
-    <y>0.444801828433113</y>
-    <Width>1.18155214866622E-05</Width>
-    <Height>1.18155214866622E-05</Height>
-    <ZOrder>5</ZOrder>
-  </SceneNode>
-  <SceneNode>
-    <FileName>images\5.png</FileName>
-    <x>0.373093668424731</x>
-    <y>0.444807443554585</y>
-    <Width>1.09052534959404E-06</Width>
-    <Height>1.09052534959403E-06</Height>
-    <ZOrder>6</ZOrder>
-  </SceneNode>
-  <SceneNode>
-    <FileName>images\6.png</FileName>
-    <x>0.373094195711619</x>
-    <y>0.444807911365808</y>
-    <Width>8.31827484943579E-08</Width>
-    <Height>8.31827484943578E-08</Height>
-    <ZOrder>7</ZOrder>
-  </SceneNode>
-  <SceneNode>
-    <FileName>images\7.png</FileName>
-    <x>0.373094237160403</x>
-    <y>0.444807947154774</y>
-    <Width>5.24379127340922E-09</Width>
-    <Height>5.24379127340921E-09</Height>
-    <ZOrder>8</ZOrder>
   </SceneNode>
 </SceneGraph>
