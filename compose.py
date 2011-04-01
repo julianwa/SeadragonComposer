@@ -32,6 +32,55 @@ def calcLodSize(finestLodSize, lod):
 	lodDiff = ceilLog2(finestLodSize[0]) - lod
 	return (divPow2RoundUp(finestLodSize[0], lodDiff), divPow2RoundUp(finestLodSize[1], lodDiff))
 
+class Rect:
+	def __init__(self, x0, y0, x1, y1):
+		self.x0 = x0
+		self.y0 = y0
+		self.x1 = x1
+		self.y1 = y1
+
+	def width(self):
+		return self.x1 - self.x0
+
+	def height(self):
+		return self.y1 - self.y0
+
+	def area(self):
+		return (self.x1 - self.x0) * (self.y1 - self.y0)
+
+	def empty(self):
+		return self.x0 <= self.x1 or self.y0 <= self.y1
+
+	def intersection(self, rect):
+		return Rect(
+			math.max(self.x0, rect.x0),
+			math.max(self.y0, rect.y0),
+			math.min(self.x1, rect.x1),
+			math.min(self.y1, rect.y1)
+		)
+
+	def __getitem__(self, index):
+		""" Returns the discrete point at the given index, in row-major order. Only valid for discrete Rects."""
+
+		w = self.x1 - self.x0
+
+		if not isinstance(w, (int, long)):
+			raise Exception("May only be applied to discrete Rects.")
+
+		return (index / w, index % w)
+
+
+	def __iter__(self):
+		""" Returns an iterator over the discrete points in the Rect, in row-major order. Only valid for discrete Rects."""
+
+		if not isinstance(self.x0, (int, long)):
+			raise Exception("May only be applied to discrete Rects.")
+
+		for y in range(self.y0, self.y1):
+			for x in range(self.x0, self.x1):
+				yield (x, y)
+
+
 class SceneNode:
 	def __init__(self, imagePath, x, y, width, height, zOrder):
 		self.imagePath = imagePath
@@ -48,7 +97,7 @@ class SceneNode:
 	def lodBounds(self, finestLodSize, lod):
 		"""Returns the bounds of the scene node in pixels in the given level of detail, expressed as [x0,y0,x1,y1] with floats."""
 		lodSize = calcLodSize(finestLodSize, lod)
-		return (
+		return Rect(
 			sceneNode.x * lodSize[0],
 			sceneNode.y * lodSize[1],
 			(sceneNode.x + sceneNode.width) * lodSize[0],
@@ -59,11 +108,11 @@ class SceneNode:
 		"""Returns the bounds of the scene node in pixels in the given level of detail, expressed as [x0,y0,x1,y1] with longs."""
 		lodBounds = self.lodBounds(finestLodSize, lod)
 		lodSize = calcLodSize(finestLodSize, lod)
-		return (
-			clamp(long(math.floor(lodBounds[0])), 0, lodSize[0]),
-			clamp(long(math.floor(lodBounds[1])), 0, lodSize[1]),
-			clamp(long(math.ceil(lodBounds[2])), 0, lodSize[0]),
-			clamp(long(math.ceil(lodBounds[3])), 0, lodSize[1])
+		return Rect(
+			clamp(long(math.floor(lodBounds.x0)), 0, lodSize[0]),
+			clamp(long(math.floor(lodBounds.y0)), 0, lodSize[1]),
+			clamp(long(math.ceil(lodBounds.x1)), 0, lodSize[0]),
+			clamp(long(math.ceil(lodBounds.y1)), 0, lodSize[1])
 		)
 
 	def populateIntersectingTiles(self, finestLodSize):
@@ -77,19 +126,18 @@ class SceneNode:
 
 			discreteLodBounds = self.discreteLodBounds(finestLodSize, lod)
 
-			if (discreteLodBounds[2] - discreteLodBounds[0] <= 1 or discreteLodBounds[3] - discreteLodBounds[1] <= 1):
+			if (discreteLodBounds.width() <= 1 or discreteLodBounds.height() <= 1):
 				break;
 
-			tileBounds = (
-				discreteLodBounds[0] / TileSize,
-				discreteLodBounds[1] / TileSize,
-				(discreteLodBounds[2] + (TileSize - 1)) / TileSize,
-				(discreteLodBounds[3] + (TileSize - 1)) / TileSize
+			tileBounds = Rect(
+				discreteLodBounds.x0 / TileSize,
+				discreteLodBounds.y0 / TileSize,
+				(discreteLodBounds.x1 + (TileSize - 1)) / TileSize,
+				(discreteLodBounds.y1 + (TileSize - 1)) / TileSize
 			)
 
-			for tileY in range(tileBounds[1], tileBounds[3]):
-				for tileX in range(tileBounds[0], tileBounds[2]):
-					tiles.append((lod, tileX, tileY))
+			for tile in tileBounds:
+				tiles.append((lod, tile[0], tile[1]))
 
 		self.intersectingTiles = tiles
 
