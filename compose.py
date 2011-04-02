@@ -201,11 +201,15 @@ class SceneNode:
 
 		srcOffset = ((tileRect.x0 - sceneNodeLodRect.x0) / scaleFactor, (tileRect.y0 - sceneNodeLodRect.y0) / scaleFactor)
 
- 		outputPath = os.path.join(
+		outputPath = os.path.join(
 			ensurePath(os.path.join(destinationFolder, str(lod))),
 			"{0}_{1}.png".format(tileX, tileY))
 
-		args = [
+		convertOutputPath = outputPath
+		if os.path.exists(outputPath):
+			convertOutputPath = os.path.splitext(outputPath)[0] + "_convert_temp.png"
+
+		convertArgs = [
 			"convert",
 			self.imagePath,
 			"-background", "transparent",
@@ -213,11 +217,25 @@ class SceneNode:
 			"-interpolate", "Bicubic",
 			"-define", "distort:viewport={0}x{1}+0+0".format(tileRect.width(), tileRect.height()),
 			"-distort", "SRT", "{0},{1}, {2}, 0, 0,0".format(srcOffset[0], srcOffset[1], scaleFactor),
-			outputPath
+			convertOutputPath
 		]
 
-		process = subprocess.Popen(args)
+		process = subprocess.Popen(convertArgs)
 		process.wait()
+		
+		# Composite the tile just produced over the existing one using ImageMagick's composite application
+		if outputPath != convertOutputPath:
+			compositeArgs = [
+				"composite",
+				convertOutputPath,
+				outputPath,
+				outputPath
+			]
+			
+			process = subprocess.Popen(compositeArgs)
+			process.wait()
+			
+			os.remove(convertOutputPath)
 
 ################################################################################
 
