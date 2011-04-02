@@ -38,7 +38,15 @@ import Image
 import math
 import subprocess
 import optparse
-from xmlobject import XMLFile
+import time
+import urllib
+import xml.dom.minidom
+
+try:
+    import cStringIO
+    StringIO = cStringIO
+except ImportError:
+    import StringIO
 
 TILE_SIZE = 254L
 
@@ -78,6 +86,34 @@ def ensurePath(path):
     if not os.path.exists(path):
         os.makedirs(path)
     return path
+
+def retry(attempts, backoff=2):
+    """Retries a function or method until it returns or
+    the number of attempts has been reached."""
+
+    if backoff <= 1:
+        raise ValueError("backoff must be greater than 1")
+
+    attempts = int(math.floor(attempts))
+    if attempts < 0:
+        raise ValueError("attempts must be 0 or greater")
+
+    def deco_retry(f):
+        def f_retry(*args, **kwargs):
+            last_exception = None
+            for _ in xrange(attempts):
+                try:
+                    return f(*args, **kwargs)
+                except Exception as exception:
+                    last_exception = exception
+                    time.sleep(backoff**(attempts + 1))
+            raise last_exception
+        return f_retry
+    return deco_retry
+
+@retry(6)
+def safeOpen(path):
+    return StringIO.StringIO(urllib.urlopen(path).read())
 
 ################################################################################
 
@@ -252,28 +288,37 @@ def determineCompositeImageSize(sceneGraph):
 
 ################################################################################
 
-def parseSparseImageSceneGraph(sceneGraphPath):
-	x = XMLFile(path=sceneGraphPath)
+def getElementValue(element):
+	return element.childNodes[0].nodeValue
+	
+def getChildElementValue(element, childTagName):
+	return getElementValue(element.getElementsByTagName(childTagName)[0])
 
-	containingFolder = os.path.dirname(sceneGraphPath)
+def parseSparseImageSceneGraph(sceneGraphUrl):
+		
+	doc = xml.dom.minidom.parse(safeOpen(sceneGraphUrl))
 
-	sceneGraph = { "aspectRatio" : float(x["SceneGraph"]["AspectRatio"]._children[0]._value) }
+	sceneGraph = { 
+		"aspectRatio" : float(getElementValue(doc.getElementsByTagName("AspectRatio")[0]))
+	}
+
+	containingFolder = os.path.dirname(sceneGraphUrl)
 
 	sceneNodes = sceneGraph["sceneNodes"] = []
-
-	for sceneNodeNode in x["SceneGraph"]["SceneNode"]:
-
+	
+	for sceneNodeNode in doc.getElementsByTagName("SceneNode"):
+	
 		sceneNode = SceneNode(
-			os.path.join(containingFolder, sceneNodeNode.FileName._children[0]._value.replace('\\', '/')),
-			float(sceneNodeNode.x._children[0]._value),
-			float(sceneNodeNode.y._children[0]._value),
-			float(sceneNodeNode.Width._children[0]._value),
-			float(sceneNodeNode.Height._children[0]._value),
-			int(sceneNodeNode.ZOrder._children[0]._value)
+			os.path.join(containingFolder, getChildElementValue(sceneNodeNode, "FileName").replace('\\', '/')),
+			float(getChildElementValue(sceneNodeNode, "x")),
+			float(getChildElementValue(sceneNodeNode, "y")),
+			float(getChildElementValue(sceneNodeNode, "Width")),
+			float(getChildElementValue(sceneNodeNode, "Height")),
+			int(getChildElementValue(sceneNodeNode, "ZOrder"))
 		)
-
+	
 		sceneNode.imageSize = Image.open(sceneNode.imagePath).size
-
+	
 		sceneNodes.append(sceneNode)
 
 	# Sort the scene nodes by ascending z-order
