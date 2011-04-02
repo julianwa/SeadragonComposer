@@ -9,16 +9,16 @@
 #  Redistribution and use in source and binary forms, with or without modification,
 #  are permitted provided that the following conditions are met:
 #
-#      1. Redistributions of source code must retain the above copyright notice,
-#         this list of conditions and the following disclaimer.
+#	   1. Redistributions of source code must retain the above copyright notice,
+#		  this list of conditions and the following disclaimer.
 #
-#      2. Redistributions in binary form must reproduce the above copyright
-#         notice, this list of conditions and the following disclaimer in the
-#         documentation and/or other materials provided with the distribution.
+#	   2. Redistributions in binary form must reproduce the above copyright
+#		  notice, this list of conditions and the following disclaimer in the
+#		  documentation and/or other materials provided with the distribution.
 #
-#      3. Neither the name of OpenZoom nor the names of its contributors may be used
-#         to endorse or promote products derived from this software without
-#         specific prior written permission.
+#	   3. Neither the name of OpenZoom nor the names of its contributors may be used
+#		  to endorse or promote products derived from this software without
+#		  specific prior written permission.
 #
 #  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
 #  ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
@@ -42,14 +42,16 @@ from xmlobject import XMLFile
 
 TILE_SIZE = 254L
 
+################################################################################
+
 def ceilLog2(x):
 	"""Returns the ceiling of the log base 2 of the given long."""
 	result = 0
+
 	while x > (1L << result):
 		result = result + 1
-	return result
 
-################################################################################
+	return result
 
 def clamp(x, l, r):
 	"""Returns the value x clamped to to the range [l, r]."""
@@ -58,8 +60,6 @@ def clamp(x, l, r):
 	if (x > r):
 		x = r
 	return x
-
-################################################################################
 
 def divPow2RoundUp(x, n):
 	"""Returns the value x divided by 2^n, rounded up."""
@@ -71,6 +71,13 @@ def calcLodSize(finestLodSize, lod):
 	"""Returns the size of the given level of detail."""
 	lodDiff = ceilLog2(finestLodSize[0]) - lod
 	return (divPow2RoundUp(finestLodSize[0], lodDiff), divPow2RoundUp(finestLodSize[1], lodDiff))
+
+################################################################################
+
+def ensurePath(path):
+    if not os.path.exists(path):
+        os.makedirs(path)
+    return path
 
 ################################################################################
 
@@ -177,7 +184,7 @@ class SceneNode:
 		else:
 			return Rect()
 
-	def renderToTile(self, finestLodSize, tile):
+	def renderToTile(self, destinationFolder, finestLodSize, tile):
 
 		lod = tile[0]
 		tileX = tile[1]
@@ -194,7 +201,9 @@ class SceneNode:
 
 		srcOffset = ((tileRect.x0 - sceneNodeLodRect.x0) / scaleFactor, (tileRect.y0 - sceneNodeLodRect.y0) / scaleFactor)
 
-		outputPath = os.path.join("argh", "{0}_{1}_{2}_{3}.png".format("blah", lod, tileX, tileY))
+ 		outputPath = os.path.join(
+			ensurePath(os.path.join(destinationFolder, str(lod))),
+			"{0}_{1}.png".format(tileX, tileY))
 
 		args = [
 			"convert",
@@ -245,7 +254,7 @@ def parseSparseImageSceneGraph(sceneGraphPath):
 			int(sceneNodeNode.ZOrder._children[0]._value)
 		)
 
- 		sceneNode.imageSize = Image.open(sceneNode.imagePath).size
+		sceneNode.imageSize = Image.open(sceneNode.imagePath).size
 
 		sceneNodes.append(sceneNode)
 
@@ -258,8 +267,23 @@ def parseSparseImageSceneGraph(sceneGraphPath):
 
 def main():
 
-	sceneGraph = parseSparseImageSceneGraph(sys.argv[1])
+	parser = optparse.OptionParser(usage="Usage: %prog [options] sceneGraph outputName")
+
+	(options, args) = parser.parse_args()
+
+	if len(args) != 2:
+		parser.print_help()
+		sys.exit(1)
+
+	sceneGraphPath = args[0]
+	imagesFolder = args[1] + "_files"
+
+	sceneGraph = parseSparseImageSceneGraph(sceneGraphPath)
 	compositeImageSize = determineCompositeImageSize(sceneGraph)
+
+	if compositeImageSize[0] < 1 or compositeImageSize[1] < 1:
+		sys.stderr.write("Error calculating the size of the composite image.")
+		sys.exit(1)
 
 	tileRenders = {}
 
@@ -273,9 +297,9 @@ def main():
 				break
 
 			for tileCoord in tileRect:
-				sceneNode.renderToTile(compositeImageSize, (lod, tileCoord[0], tileCoord[1]))
+				sceneNode.renderToTile(imagesFolder, compositeImageSize, (lod, tileCoord[0], tileCoord[1]))
 
 ################################################################################
 
 if __name__ == "__main__":
-    main()
+	main()
