@@ -49,6 +49,7 @@ except ImportError:
     import StringIO
 
 TILE_SIZE = 254L
+NS_DEEPZOOM = "http://schemas.microsoft.com/deepzoom/2008"
 
 ################################################################################
 
@@ -258,7 +259,7 @@ class SceneNode:
 
 		process = subprocess.Popen(convertArgs)
 		process.wait()
-		
+
 		# Composite the tile just produced over the existing one using ImageMagick's composite application
 		if outputPath != convertOutputPath:
 			compositeArgs = [
@@ -267,10 +268,10 @@ class SceneNode:
 				outputPath,
 				outputPath
 			]
-			
+
 			process = subprocess.Popen(compositeArgs)
 			process.wait()
-			
+
 			os.remove(convertOutputPath)
 
 ################################################################################
@@ -290,24 +291,24 @@ def determineCompositeImageSize(sceneGraph):
 
 def getElementValue(element):
 	return element.childNodes[0].nodeValue
-	
+
 def getChildElementValue(element, childTagName):
 	return getElementValue(element.getElementsByTagName(childTagName)[0])
 
 def parseSparseImageSceneGraph(sceneGraphUrl):
-		
+
 	doc = xml.dom.minidom.parse(safeOpen(sceneGraphUrl))
 
-	sceneGraph = { 
+	sceneGraph = {
 		"aspectRatio" : float(getElementValue(doc.getElementsByTagName("AspectRatio")[0]))
 	}
 
 	containingFolder = os.path.dirname(sceneGraphUrl)
 
 	sceneNodes = sceneGraph["sceneNodes"] = []
-	
+
 	for sceneNodeNode in doc.getElementsByTagName("SceneNode"):
-	
+
 		sceneNode = SceneNode(
 			os.path.join(containingFolder, getChildElementValue(sceneNodeNode, "FileName").replace('\\', '/')),
 			float(getChildElementValue(sceneNodeNode, "x")),
@@ -316,15 +317,40 @@ def parseSparseImageSceneGraph(sceneGraphUrl):
 			float(getChildElementValue(sceneNodeNode, "Height")),
 			int(getChildElementValue(sceneNodeNode, "ZOrder"))
 		)
-	
+
 		sceneNode.imageSize = Image.open(sceneNode.imagePath).size
-	
+
 		sceneNodes.append(sceneNode)
 
 	# Sort the scene nodes by ascending z-order
 	sceneNodes.sort(key=lambda sceneNode: sceneNode.zOrder)
 
 	return sceneGraph
+
+################################################################################
+
+def writeDzi(destination, dziSize):
+    """Save descriptor file."""
+    file = open(destination, "w")
+    doc = xml.dom.minidom.Document()
+
+    image = doc.createElementNS(NS_DEEPZOOM, "Image")
+    image.setAttribute("xmlns", NS_DEEPZOOM)
+    image.setAttribute("TileSize", str(TILE_SIZE))
+    image.setAttribute("Overlap", "0")
+    image.setAttribute("Format", "png")
+
+    size = doc.createElementNS(NS_DEEPZOOM, "Size")
+    size.setAttribute("Width", str(dziSize[0]))
+    size.setAttribute("Height", str(dziSize[1]))
+
+    image.appendChild(size)
+    doc.appendChild(image)
+
+    descriptor = doc.toprettyxml(encoding="UTF-8")
+
+    file.write(descriptor)
+    file.close()
 
 ################################################################################
 
@@ -340,6 +366,7 @@ def main():
 
 	sceneGraphPath = args[0]
 	imagesFolder = args[1] + "_files"
+	outputDzi = args[1] + ".dzi"
 
 	sceneGraph = parseSparseImageSceneGraph(sceneGraphPath)
 	compositeImageSize = determineCompositeImageSize(sceneGraph)
@@ -349,6 +376,8 @@ def main():
 		sys.exit(1)
 
 	tileRenders = {}
+
+	writeDzi(outputDzi, compositeImageSize)
 
 	for sceneNode in sceneGraph["sceneNodes"]:
 
