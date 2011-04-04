@@ -1,0 +1,4 @@
+#!/bin/bash
+
+convert $1 `dirname $1`/`basename $1 .png`.jpg
+rm $1
