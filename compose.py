@@ -235,15 +235,18 @@ class SceneNode:
 		tileY = tile[2]
 
 		lodSize = calcLodSize(finestLodSize, lod)
-		lodRect = Rect(0, 0, lodSize[0], lodSize[1])
-
 		sceneNodeLodRect = self.lodRect(finestLodSize, lod)
-
 		scaleFactor = sceneNodeLodRect.width() / self.imageSize[0]
 
-		tileRect = Rect(tileX * TILE_SIZE, tileY * TILE_SIZE, (tileX + 1) * TILE_SIZE, (tileY + 1) * TILE_SIZE).intersection(lodRect)
+		tileRect = Rect(
+			tileX * TILE_SIZE - 1,
+			tileY * TILE_SIZE - 1,
+			(tileX + 1) * TILE_SIZE + 1,
+			(tileY + 1) * TILE_SIZE + 1).intersection(Rect(0, 0, lodSize[0], lodSize[1]))
 
-		srcOffset = ((tileRect.x0 - sceneNodeLodRect.x0) / scaleFactor, (tileRect.y0 - sceneNodeLodRect.y0) / scaleFactor)
+		srcOffset = (
+			(tileRect.x0 - sceneNodeLodRect.x0) / scaleFactor,
+			(tileRect.y0 - sceneNodeLodRect.y0) / scaleFactor)
 
 		outputPath = os.path.join(
 			ensurePath(os.path.join(destinationFolder, str(lod))),
@@ -344,7 +347,7 @@ def writeDzi(destination, dziSize):
     image = doc.createElementNS(NS_DEEPZOOM, "Image")
     image.setAttribute("xmlns", NS_DEEPZOOM)
     image.setAttribute("TileSize", str(TILE_SIZE))
-    image.setAttribute("Overlap", "0")
+    image.setAttribute("Overlap", "1")
     image.setAttribute("Format", "png")
 
     size = doc.createElementNS(NS_DEEPZOOM, "Size")
@@ -431,9 +434,9 @@ def main():
 	if compositeImageSize[0] < 1 or compositeImageSize[1] < 1:
 		sys.stderr.write("Error calculating the size of the composite image.")
 		sys.exit(1)
-		
+
 	print "Composite image size: ({0}, {1})".format(compositeImageSize[0], compositeImageSize[1])
-	print "Finest of detail: {0}".format(calcLodFromSize(compositeImageSize))
+	print "Finest level of detail: {0}".format(calcLodFromSize(compositeImageSize))
 
 	writeDzi(outputDzi, compositeImageSize)
 
