@@ -386,6 +386,7 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 		for lod in reversed(range(1, finestLod + 1)):
 
 			sys.stdout.write(" " + str(lod))
+			sys.stdout.flush()
 
 			# The tiles that the scene node overlaps in the LOD
 			tileRect = sceneNode.tileRect(compositeImageSize, lod)
