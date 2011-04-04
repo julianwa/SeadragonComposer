@@ -231,7 +231,7 @@ class SceneNode:
 		else:
 			return Rect()
 
-	def renderToTile(self, destinationFolder, finestLodSize, tile):
+	def renderToTile(self, destinationFolder, finestLodSize, tile, tilerArgsFile):
 
 		lod = tile[0]
 		tileX = tile[1]
@@ -255,37 +255,7 @@ class SceneNode:
 			ensurePath(os.path.join(destinationFolder, str(lod))),
 			"{0}_{1}.png".format(tileX, tileY))
 
-		convertOutputPath = outputPath
-		if os.path.exists(outputPath):
-			convertOutputPath = os.path.splitext(outputPath)[0] + "_convert_temp.png"
-
-		convertArgs = [
-			"convert",
-			self.imagePath,
-			"-background", "transparent",
-			"-virtual-pixel", "transparent",
-			"-interpolate", "Bicubic",
-			"-define", "distort:viewport={0}x{1}+0+0".format(tileRect.width(), tileRect.height()),
-			"-distort", "SRT", "{0},{1}, {2}, 0, 0,0".format(srcOffset[0], srcOffset[1], scaleFactor),
-			convertOutputPath
-		]
-
-		process = subprocess.Popen(convertArgs)
-		process.wait()
-
-		# Composite the tile just produced over the existing one using ImageMagick's composite application
-		if outputPath != convertOutputPath:
-			compositeArgs = [
-				"composite",
-				convertOutputPath,
-				outputPath,
-				outputPath
-			]
-
-			process = subprocess.Popen(compositeArgs)
-			process.wait()
-
-			os.remove(convertOutputPath)
+		tilerArgsFile.write("{0} {1} {2} {3} {4} {5}\n".format(outputPath, tileRect.width(), tileRect.height(), srcOffset[0], srcOffset[1], scaleFactor))
 
 ################################################################################
 
@@ -382,6 +352,8 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 		# generates tiles. However, it will also be rendered to overlapping tiles at finer LODs.
 		sceneNodeFinestLod = sceneNode.finestLod(compositeImageSize)
 
+		tilerArgsFile = open("args.txt", "w")
+
 		# Iterate over all possible LODs to which the scene node may be rendered
 		for lod in reversed(range(1, finestLod + 1)):
 
@@ -418,8 +390,18 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 					# Make sure we don't waste time rendering the same tile coordinate twice. This would happen
 					# if multiple scene nodes overlapped this one, each one contributing a tile rect to render.
 					if not tileCoord in tileCoordsRendered:
-						sceneNode.renderToTile(imagesFolder, compositeImageSize, (lod, tileCoord[0], tileCoord[1]))
+						sceneNode.renderToTile(imagesFolder, compositeImageSize, (lod, tileCoord[0], tileCoord[1]), tilerArgsFile)
 						tileCoordsRendered.add(tileCoord)
+
+		tilerArgsFile.close()
+
+		tilerArgs = [
+			"bin/tiler",
+			sceneNode.imagePath
+		]
+
+		process = subprocess.Popen(tilerArgs)
+		process.wait()
 
 		sys.stdout.write("\n")
 
