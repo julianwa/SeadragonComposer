@@ -11,8 +11,6 @@ int main(int argc, char *argv[])
 {
 	auto_ptr<Image> img(new Image::Image(argv[1]));
 
-	img->write("blah.jpg");
-
 	ifstream args("args.txt");
 
 	while (!args.eof())
