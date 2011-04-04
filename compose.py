@@ -6,6 +6,9 @@
 #  Copyright (c) 2011, Julian Walker <julianreidwalker@gmail.com>
 #  All rights reserved.
 #
+#  Some of the code found here was adapted from https://github.com/openzoom/deepzoom.py,
+#  developed by: Daniel Gasienica <daniel@gasienica.ch> and Kapil Thangavelu <kapil.foss@gmail.com>.
+#
 #  Redistribution and use in source and binary forms, with or without modification,
 #  are permitted provided that the following conditions are met:
 #
