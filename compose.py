@@ -346,7 +346,7 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 	# Iterate through each scene node in order of ascending draw order
 	for sceneNode in sceneNodes:
 
-		sys.stdout.write(sceneNode.imagePath)
+		sys.stdout.write(sceneNode.imagePath + ": ")
 
 		# The finest LOD of the scene node. This is the finest LOD at which the scene node
 		# generates tiles. However, it will also be rendered to overlapping tiles at finer LODs.
@@ -357,7 +357,7 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 		# Iterate over all possible LODs to which the scene node may be rendered
 		for lod in reversed(range(1, finestLod + 1)):
 
-			sys.stdout.write(" " + str(lod))
+			tilerArgsFile.write("# " + str(lod) + "\n")
 
 			# The tiles that the scene node overlaps in the LOD
 			tileRect = sceneNode.tileRect(compositeImageSize, lod)
@@ -394,6 +394,7 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 						tileCoordsRendered.add(tileCoord)
 
 		tilerArgsFile.close()
+		sys.stdout.flush()
 
 		tilerArgs = [
 			"bin/tiler",
