@@ -352,7 +352,8 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 		# generates tiles. However, it will also be rendered to overlapping tiles at finer LODs.
 		sceneNodeFinestLod = sceneNode.finestLod(compositeImageSize)
 
-		tilerArgsFile = open("args.txt", "w")
+		tilerArgsFilePath = "args.txt"
+		tilerArgsFile = open(tilerArgsFilePath, "w")
 
 		# Iterate over all possible LODs to which the scene node may be rendered
 		for lod in reversed(range(1, finestLod + 1)):
@@ -404,6 +405,7 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 		process = subprocess.Popen(tilerArgs)
 		process.wait()
 
+		os.remove(tilerArgsFilePath)
 		sys.stdout.write("\n")
 
 def main():
