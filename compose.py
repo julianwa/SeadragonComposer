@@ -346,7 +346,7 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 	# Iterate through each scene node in order of ascending draw order
 	for sceneNode in sceneNodes:
 
-		sys.stdout.write(sceneNode.imagePath + ": ")
+		sys.stdout.write("{0} {1}x{2}: ".format(sceneNode.imagePath, sceneNode.imageSize[0], sceneNode.imageSize[1]))
 
 		# The finest LOD of the scene node. This is the finest LOD at which the scene node
 		# generates tiles. However, it will also be rendered to overlapping tiles at finer LODs.
@@ -358,7 +358,10 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 		# Iterate over all possible LODs to which the scene node may be rendered
 		for lod in reversed(range(1, finestLod + 1)):
 
-			tilerArgsFile.write("# " + str(lod) + "\n")
+			if lod == sceneNodeFinestLod:
+				tilerArgsFile.write("# *" + str(lod) + "\n")
+			else:
+				tilerArgsFile.write("# " + str(lod) + "\n")
 
 			# The tiles that the scene node overlaps in the LOD
 			tileRect = sceneNode.tileRect(compositeImageSize, lod)
@@ -429,7 +432,7 @@ def main():
 		sys.stderr.write("Error calculating the size of the composite image.")
 		sys.exit(1)
 
-	print "Composite image size: ({0}, {1})".format(compositeImageSize[0], compositeImageSize[1])
+	print "Composite image size: {0}x{1}".format(compositeImageSize[0], compositeImageSize[1])
 	print "Finest level of detail: {0}".format(calcLodFromSize(compositeImageSize))
 
 	writeDzi(outputDzi, compositeImageSize)
