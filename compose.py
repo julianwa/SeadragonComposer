@@ -254,8 +254,49 @@ class SceneNode:
 		outputPath = os.path.join(
 			ensurePath(os.path.join(destinationFolder, str(lod))),
 			"{0}_{1}.png".format(tileX, tileY))
+		
+		# If the tiler args file is non-null, we're using tiler. Otherwise, we render the tile
+		# using ImageMagick's convert and composite applications
+		if tilerArgsFile is None:
 
-		tilerArgsFile.write("{0} {1} {2} {3} {4} {5}\n".format(outputPath, tileRect.width(), tileRect.height(), srcOffset[0], srcOffset[1], scaleFactor))
+			# Write a tile image with only this scene node's contribution in it to convertOutputPath.
+			convertOutputPath = outputPath
+			if os.path.exists(outputPath):
+				convertOutputPath = os.path.splitext(outputPath)[0] + "_convert_temp.png"
+				
+			convertArgs = [
+				"convert",
+				self.imagePath,
+				"-background", "transparent",
+				"-virtual-pixel", "transparent",
+				"-interpolate", "Bicubic",
+				"-define", "distort:viewport={0}x{1}+0+0".format(tileRect.width(), tileRect.height()),
+				"-distort", "SRT", "{0},{1}, {2}, 0, 0,0".format(srcOffset[0], srcOffset[1], scaleFactor),
+				convertOutputPath
+			]
+
+			process = subprocess.Popen(convertArgs)
+			process.wait()
+			
+			# If another scene node has already made a contribution to this tile, then composite this scene node's
+			# contribution over it.
+			if outputPath != convertOutputPath:
+				compositeArgs = [
+					"composite",
+					convertOutputPath,
+					outputPath,
+					outputPath
+				]
+
+				process = subprocess.Popen(compositeArgs)
+				process.wait()
+
+				os.remove(convertOutputPath)
+
+		else:
+			# Write the details for rendering the tile to the tilerArgsFile. The tiler application will handle
+			# the actually render.
+			tilerArgsFile.write("{0} {1} {2} {3} {4} {5}\n".format(outputPath, tileRect.width(), tileRect.height(), srcOffset[0], srcOffset[1], scaleFactor))
 
 ################################################################################
 
@@ -337,7 +378,7 @@ def writeDzi(destination, dziSize):
 
 ################################################################################
 
-def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
+def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagick):
 	"""Renders the scene nodes to the tile images that comprise the composite image."""
 
 	# The finest LOD of the composite image
@@ -347,21 +388,27 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 	for sceneNode in sceneNodes:
 
 		sys.stdout.write("{0} {1}x{2}: ".format(sceneNode.imagePath, sceneNode.imageSize[0], sceneNode.imageSize[1]))
+		sys.stdout.flush()
 
 		# The finest LOD of the scene node. This is the finest LOD at which the scene node
 		# generates tiles. However, it will also be rendered to overlapping tiles at finer LODs.
 		sceneNodeFinestLod = sceneNode.finestLod(compositeImageSize)
 
-		tilerArgsFilePath = "tilerArgs.txt"
-		tilerArgsFile = open(tilerArgsFilePath, "w")
+		tilerArgsFile = None
+		if not useImageMagick:
+			tilerArgsFilePath = "tilerArgs.txt"
+			tilerArgsFile = open(tilerArgsFilePath, "w")
 
 		# Iterate over all possible LODs to which the scene node may be rendered
 		for lod in reversed(range(1, finestLod + 1)):
 
-			if lod == sceneNodeFinestLod:
-				tilerArgsFile.write("# *" + str(lod) + "\n")
+			lodProgressStr = ("" if lod is not sceneNodeFinestLod else "*") + str(lod)
+
+			if useImageMagick:
+				sys.stdout.write((" " if lod is not finestLod else "") + lodProgressStr)
+				sys.stdout.flush()
 			else:
-				tilerArgsFile.write("# " + str(lod) + "\n")
+				tilerArgsFile.write("#" + lodProgressStr + "\n")
 
 			# The tiles that the scene node overlaps in the LOD
 			tileRect = sceneNode.tileRect(compositeImageSize, lod)
@@ -397,24 +444,30 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes):
 						sceneNode.renderToTile(imagesFolder, compositeImageSize, (lod, tileCoord[0], tileCoord[1]), tilerArgsFile)
 						tileCoordsRendered.add(tileCoord)
 
-		tilerArgsFile.close()
-		sys.stdout.flush()
+		if not useImageMagick:
+			
+			tilerArgsFile.close()
 
-		tilerArgs = [
-			"bin/tiler",
-			sceneNode.imagePath,
-			tilerArgsFilePath
-		]
+			tilerArgs = [
+				"bin/tiler",
+				sceneNode.imagePath,
+				tilerArgsFilePath
+			]
 
-		process = subprocess.Popen(tilerArgs)
-		process.wait()
+			process = subprocess.Popen(tilerArgs)
+			process.wait()
 
-		os.remove(tilerArgsFilePath)
+			os.remove(tilerArgsFilePath)
+			
 		sys.stdout.write("\n")
+		sys.stdout.flush();
 
 def main():
 
 	parser = optparse.OptionParser(usage="Usage: %prog [options] sceneGraph outputName")
+	parser.add_option("--use-ImageMagick", action="store_true", dest="useImageMagick", help="Use the ImageMagick " + 
+		"convert and composite applications instead of tiler. This is useful if tiler can't be compiled, " +
+		"but should only be used if necessary since tiler provides much better performance.")
 
 	(options, args) = parser.parse_args()
 
@@ -438,7 +491,7 @@ def main():
 
 	writeDzi(outputDzi, compositeImageSize)
 
-	renderTileImages(imagesFolder, compositeImageSize, sceneGraph["sceneNodes"])
+	renderTileImages(imagesFolder, compositeImageSize, sceneGraph["sceneNodes"], options.useImageMagick)
 
 ################################################################################
 
