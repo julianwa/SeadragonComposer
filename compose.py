@@ -448,8 +448,13 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 			
 			tilerArgsFile.close()
 
+			scriptPath = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "tiler"))
+			
+			if not os.path.exists:
+				sys.exit("\n\nExiting. Could not find tiler application at: " + scriptPath + ". Did you build it?")
+
 			tilerArgs = [
-				"bin/tiler",
+				scriptPath,
 				sceneNode.imagePath,
 				tilerArgsFilePath
 			]
