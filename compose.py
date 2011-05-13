@@ -183,13 +183,14 @@ class Rect:
 ################################################################################
 
 class SceneNode:
-	def __init__(self, imagePath, x, y, width, height, zOrder):
+	def __init__(self, imagePath, x, y, width, height, zOrder, minRenderWidthInPixels):
 		self.imagePath = imagePath
 		self.x = x
 		self.y = y
 		self.width = width
 		self.height = height
 		self.zOrder = zOrder
+		self.minRenderWidthInPixels = minRenderWidthInPixels
 		self.imageSize = (0,0)
 
 	def finestLod(self, finestLodSize):
@@ -317,7 +318,11 @@ def getElementValue(element):
 	return element.childNodes[0].nodeValue
 
 def getChildElementValue(element, childTagName):
-	return getElementValue(element.getElementsByTagName(childTagName)[0])
+	elements = element.getElementsByTagName(childTagName)
+	if len(elements) > 0:
+		return getElementValue(element.getElementsByTagName(childTagName)[0])
+	else:
+		return None
 
 def parseSparseImageSceneGraph(sceneGraphUrl):
 
@@ -333,13 +338,19 @@ def parseSparseImageSceneGraph(sceneGraphUrl):
 
 	for sceneNodeNode in doc.getElementsByTagName("SceneNode"):
 
+		minRenderWidthInPixels = getChildElementValue(sceneNodeNode, "MinRenderWidthInPixels")
+		minRenderWidthInPixels = 1 if minRenderWidthInPixels is None else minRenderWidthInPixels
+		if minRenderWidthInPixels <= 0:
+			sys.exit("MinWidth must be positive")
+
 		sceneNode = SceneNode(
 			os.path.join(containingFolder, getChildElementValue(sceneNodeNode, "FileName").replace('\\', '/')),
 			float(getChildElementValue(sceneNodeNode, "x")),
 			float(getChildElementValue(sceneNodeNode, "y")),
 			float(getChildElementValue(sceneNodeNode, "Width")),
 			float(getChildElementValue(sceneNodeNode, "Height")),
-			int(getChildElementValue(sceneNodeNode, "ZOrder"))
+			int(getChildElementValue(sceneNodeNode, "ZOrder")),
+			int(minRenderWidthInPixels)
 		)
 
 		sceneNode.imageSize = Image.open(sceneNode.imagePath).size
@@ -394,13 +405,20 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 		# generates tiles. However, it will also be rendered to overlapping tiles at finer LODs.
 		sceneNodeFinestLod = sceneNode.finestLod(compositeImageSize)
 
+		# The coarsest LOD of the scene node. We ensure that the scene node is never rendered to a tile at less than 
+		# its min width. However, when the coarsest LOD is downsampled, the image may appear smaller than this width.
+		sceneNodeCoarsestLod = sceneNodeFinestLod
+		while sceneNodeCoarsestLod > 0 and sceneNode.lodRect(compositeImageSize, sceneNodeCoarsestLod - 1).width() >= sceneNode.minRenderWidthInPixels:
+			sceneNodeCoarsestLod -= 1
+
+
 		tilerArgsFile = None
 		if not useImageMagick:
 			tilerArgsFilePath = "tilerArgs.txt"
 			tilerArgsFile = open(tilerArgsFilePath, "w")
 
 		# Iterate over all possible LODs to which the scene node may be rendered
-		for lod in reversed(range(1, finestLod + 1)):
+		for lod in reversed(range(sceneNodeCoarsestLod, finestLod + 1)):
 
 			lodProgressStr = ("" if lod is not sceneNodeFinestLod else "*") + str(lod)
 
