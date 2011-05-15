@@ -25,5 +25,6 @@
     <Height>0.0401452053998532</Height>
     <ZOrder>3</ZOrder>
 	<MinRenderWidthInPixels>10</MinRenderWidthInPixels>
+	<NumFadeInLevels>4</NumFadeInLevels>
   </SceneNode>
 </SceneGraph>

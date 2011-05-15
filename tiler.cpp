@@ -11,7 +11,7 @@ using namespace Magick;
 /// Renders the given image to multiple tiles whose details are provided in a tile specs file. The format of the file is:
 ///
 ///		# comment
-///		outputFile tileSizeX tileSizeY sourceOffsetX sourceOffsetY scaleFactor
+///		outputFile tileSizeX tileSizeY sourceOffsetX sourceOffsetY scaleFactor opacity
 ///		...
 ///
 /// </summary>
@@ -56,13 +56,17 @@ int main(int argc, char *argv[])
 				double sourceOffsetX;
 				double sourceOffsetY;
 				double scaleFactor;
+				int opacity;
 
 				// Read the tile spec.
-				lineStream >> outputFile >> tileSizeX >> tileSizeY >> sourceOffsetX >> sourceOffsetY >> scaleFactor;
+				lineStream >> outputFile >> tileSizeX >> tileSizeY >> sourceOffsetX >> sourceOffsetY >> scaleFactor >> opacity;
 
 				// Create an image for the tile that's a copy/reference to the source image.
 				auto_ptr<Image> tileImg(new Image::Image());
 				*tileImg = *img;
+
+				// Set/attenuate the opacity of the tile
+				tileImg->opacity(MaxRGB - opacity * (MaxRGB / 255));
 
 				// Set the viewport for the tile image to the tile size.
 				stringstream viewport;

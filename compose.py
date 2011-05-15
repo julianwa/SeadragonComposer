@@ -183,7 +183,7 @@ class Rect:
 ################################################################################
 
 class SceneNode:
-	def __init__(self, imagePath, x, y, width, height, zOrder, minRenderWidthInPixels):
+	def __init__(self, imagePath, x, y, width, height, zOrder, minRenderWidthInPixels, numFadeInLevels):
 		self.imagePath = imagePath
 		self.x = x
 		self.y = y
@@ -191,6 +191,7 @@ class SceneNode:
 		self.height = height
 		self.zOrder = zOrder
 		self.minRenderWidthInPixels = minRenderWidthInPixels
+		self.numFadeInLevels = numFadeInLevels
 		self.imageSize = (0,0)
 
 	def finestLod(self, finestLodSize):
@@ -232,7 +233,7 @@ class SceneNode:
 		else:
 			return Rect()
 
-	def renderToTile(self, destinationFolder, finestLodSize, tile, tilerArgsFile):
+	def renderToTile(self, destinationFolder, finestLodSize, tile, opacity, tilerArgsFile):
 
 		lod = tile[0]
 		tileX = tile[1]
@@ -255,16 +256,20 @@ class SceneNode:
 		outputPath = os.path.join(
 			ensurePath(os.path.join(destinationFolder, str(lod))),
 			"{0}_{1}.png".format(tileX, tileY))
-		
+
 		# If the tiler args file is non-null, we're using tiler. Otherwise, we render the tile
 		# using ImageMagick's convert and composite applications
 		if tilerArgsFile is None:
+
+			if opacity is not 255:
+				print ""
+				sys.exit("Exiting. Partial transparency not currently supported when using ImageMagick.")
 
 			# Write a tile image with only this scene node's contribution in it to convertOutputPath.
 			convertOutputPath = outputPath
 			if os.path.exists(outputPath):
 				convertOutputPath = os.path.splitext(outputPath)[0] + "_convert_temp.png"
-				
+
 			convertArgs = [
 				"convert",
 				self.imagePath,
@@ -278,7 +283,7 @@ class SceneNode:
 
 			process = subprocess.Popen(convertArgs)
 			process.wait()
-			
+
 			# If another scene node has already made a contribution to this tile, then composite this scene node's
 			# contribution over it.
 			if outputPath != convertOutputPath:
@@ -297,7 +302,7 @@ class SceneNode:
 		else:
 			# Write the details for rendering the tile to the tilerArgsFile. The tiler application will handle
 			# the actually render.
-			tilerArgsFile.write("{0} {1} {2} {3} {4} {5}\n".format(outputPath, tileRect.width(), tileRect.height(), srcOffset[0], srcOffset[1], scaleFactor))
+			tilerArgsFile.write("{0} {1} {2} {3} {4} {5} {6}\n".format(outputPath, tileRect.width(), tileRect.height(), srcOffset[0], srcOffset[1], scaleFactor, opacity))
 
 ################################################################################
 
@@ -343,6 +348,11 @@ def parseSparseImageSceneGraph(sceneGraphUrl):
 		if minRenderWidthInPixels <= 0:
 			sys.exit("MinWidth must be positive")
 
+		numFadeInLevels = getChildElementValue(sceneNodeNode, "NumFadeInLevels")
+		numFadeInLevels = 0 if numFadeInLevels is None else numFadeInLevels
+		if numFadeInLevels < 0:
+			sys.exit("NumFadeInLevels must be non-negative")
+
 		sceneNode = SceneNode(
 			os.path.join(containingFolder, getChildElementValue(sceneNodeNode, "FileName").replace('\\', '/')),
 			float(getChildElementValue(sceneNodeNode, "x")),
@@ -350,7 +360,8 @@ def parseSparseImageSceneGraph(sceneGraphUrl):
 			float(getChildElementValue(sceneNodeNode, "Width")),
 			float(getChildElementValue(sceneNodeNode, "Height")),
 			int(getChildElementValue(sceneNodeNode, "ZOrder")),
-			int(minRenderWidthInPixels)
+			int(minRenderWidthInPixels),
+			int(numFadeInLevels)
 		)
 
 		sceneNode.imageSize = Image.open(sceneNode.imagePath).size
@@ -405,7 +416,7 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 		# generates tiles. However, it will also be rendered to overlapping tiles at finer LODs.
 		sceneNodeFinestLod = sceneNode.finestLod(compositeImageSize)
 
-		# The coarsest LOD of the scene node. We ensure that the scene node is never rendered to a tile at less than 
+		# The coarsest LOD of the scene node. We ensure that the scene node is never rendered to a tile at less than
 		# its min width. However, when the coarsest LOD is downsampled, the image may appear smaller than this width.
 		sceneNodeCoarsestLod = sceneNodeFinestLod
 		while sceneNodeCoarsestLod > 0 and sceneNode.lodRect(compositeImageSize, sceneNodeCoarsestLod - 1).width() >= sceneNode.minRenderWidthInPixels:
@@ -434,6 +445,16 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 			if tileRect.empty():
 				break
 
+			# Set the opacity for this level of detail based on the number of "fade in levels". The number of fade
+			# in levels specifies over how many levels the image fades from transparent to fullly opaque.
+			#
+			# For example:
+			#   * If num fade in levels is set to 1, then sceneNodeCoarsestLevel would get half opacity and the
+			#     rest would get full opacity.
+			#   * If num fade in levels is 3, then sceneNodeCoarsestLevel would get quarter opacity, the next level
+			#     would get half opacity, next would get three quarters, and rest would get full opacity.
+			lodOpacity = max(0, min(255, int(255 * (lod - sceneNodeCoarsestLod + 1) / float(sceneNode.numFadeInLevels + 1))));
+
 			tileRectsToRender = []
 
 			if lod <= sceneNodeFinestLod:
@@ -459,15 +480,15 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 					# Make sure we don't waste time rendering the same tile coordinate twice. This would happen
 					# if multiple scene nodes overlapped this one, each one contributing a tile rect to render.
 					if not tileCoord in tileCoordsRendered:
-						sceneNode.renderToTile(imagesFolder, compositeImageSize, (lod, tileCoord[0], tileCoord[1]), tilerArgsFile)
+						sceneNode.renderToTile(imagesFolder, compositeImageSize, (lod, tileCoord[0], tileCoord[1]), lodOpacity, tilerArgsFile)
 						tileCoordsRendered.add(tileCoord)
 
 		if not useImageMagick:
-			
+
 			tilerArgsFile.close()
 
 			scriptPath = os.path.abspath(os.path.join(os.path.dirname(sys.argv[0]), "tiler"))
-			
+
 			if not os.path.exists:
 				sys.exit("\n\nExiting. Could not find tiler application at: " + scriptPath + ". Did you build it?")
 
@@ -481,14 +502,14 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 			process.wait()
 
 			os.remove(tilerArgsFilePath)
-			
+
 		sys.stdout.write("\n")
 		sys.stdout.flush();
 
 def main():
 
 	parser = optparse.OptionParser(usage="Usage: %prog [options] sceneGraph outputName")
-	parser.add_option("--use-ImageMagick", action="store_true", dest="useImageMagick", help="Use the ImageMagick " + 
+	parser.add_option("--use-ImageMagick", action="store_true", dest="useImageMagick", help="Use the ImageMagick " +
 		"convert and composite applications instead of tiler. This is useful if tiler can't be compiled, " +
 		"but should only be used if necessary since tiler provides much better performance.")
 
