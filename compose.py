@@ -400,7 +400,7 @@ def writeDzi(destination, dziSize):
 
 ################################################################################
 
-def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagick):
+def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, options):
 	"""Renders the scene nodes to the tile images that comprise the composite image."""
 
 	# The finest LOD of the composite image
@@ -422,9 +422,8 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 		while sceneNodeCoarsestLod > 0 and sceneNode.lodRect(compositeImageSize, sceneNodeCoarsestLod - 1).width() >= sceneNode.minRenderWidthInPixels:
 			sceneNodeCoarsestLod -= 1
 
-
 		tilerArgsFile = None
-		if not useImageMagick:
+		if not options.useImageMagick:
 			tilerArgsFilePath = "tilerArgs.txt"
 			tilerArgsFile = open(tilerArgsFilePath, "w")
 
@@ -433,7 +432,7 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 
 			lodProgressStr = ("" if lod is not sceneNodeFinestLod else "*") + str(lod)
 
-			if useImageMagick:
+			if options.useImageMagick:
 				sys.stdout.write((" " if lod is not finestLod else "") + lodProgressStr)
 				sys.stdout.flush()
 			else:
@@ -480,10 +479,11 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 					# Make sure we don't waste time rendering the same tile coordinate twice. This would happen
 					# if multiple scene nodes overlapped this one, each one contributing a tile rect to render.
 					if not tileCoord in tileCoordsRendered:
-						sceneNode.renderToTile(imagesFolder, compositeImageSize, (lod, tileCoord[0], tileCoord[1]), lodOpacity, tilerArgsFile)
+						if not options.dryRun:
+							sceneNode.renderToTile(imagesFolder, compositeImageSize, (lod, tileCoord[0], tileCoord[1]), lodOpacity, tilerArgsFile)
 						tileCoordsRendered.add(tileCoord)
 
-		if not useImageMagick:
+		if not options.useImageMagick:
 
 			tilerArgsFile.close()
 
@@ -509,15 +509,26 @@ def renderTileImages(imagesFolder, compositeImageSize, sceneNodes, useImageMagic
 def main():
 
 	parser = optparse.OptionParser(usage="Usage: %prog [options] sceneGraph outputName")
+
 	parser.add_option("--use-ImageMagick", action="store_true", dest="useImageMagick", help="Use the ImageMagick " +
 		"convert and composite applications instead of tiler. This is useful if tiler can't be compiled, " +
 		"but should only be used if necessary since tiler provides much better performance.")
+
+	parser.add_option("-n", "--dry-run", action="store_true", dest="dryRun", help="Don't actually create any imagery, just show what would be done.")
 
 	(options, args) = parser.parse_args()
 
 	if len(args) != 2:
 		parser.print_help()
 		sys.exit(1)
+
+	# If we're doing a dry run, force useImageMagick since it's easier to not produce any artifacts
+	# in that mode.
+	if options.dryRun:
+		options.useImageMagick = True
+
+	print options.useImageMagick
+	print options.dryRun
 
 	sceneGraphPath = args[0]
 	imagesFolder = args[1] + "_files"
@@ -533,9 +544,10 @@ def main():
 	print "Composite image size: {0}x{1}".format(compositeImageSize[0], compositeImageSize[1])
 	print "Finest level of detail: {0}".format(calcLodFromSize(compositeImageSize))
 
-	writeDzi(outputDzi, compositeImageSize)
+	if not options.dryRun:
+		writeDzi(outputDzi, compositeImageSize)
 
-	renderTileImages(imagesFolder, compositeImageSize, sceneGraph["sceneNodes"], options.useImageMagick)
+	renderTileImages(imagesFolder, compositeImageSize, sceneGraph["sceneNodes"], options)
 
 ################################################################################
 
